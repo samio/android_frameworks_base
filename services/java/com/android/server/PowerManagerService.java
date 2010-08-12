@@ -262,7 +262,9 @@ class PowerManagerService extends IPowerManager.Stub
     private int mLightFilterSample = -1;
     private int[] mLightFilterSamples;
     private int mLightFilterIndex;
-    private int mLightFilterCounter;
+    private int mLightFilterSampleCounter;
+    private int mLightFilterSum;
+    private int mLightFilterEqualCounter;
     private int mLightFilterWindow;
     private int mLightFilterInterval;
     private int mLightFilterReset;
@@ -1054,36 +1056,71 @@ class PowerManagerService extends IPowerManager.Stub
         }
     }
 
-    private void setTimeoutLocked(long now, int nextState)
-    {
+    private void setTimeoutLocked(long now, int nextState) {
+        setTimeoutLocked(now, -1, nextState);
+    }
+
+    // If they gave a timeoutOverride it is the number of seconds
+    // to screen-off.  Figure out where in the countdown cycle we
+    // should jump to.
+    private void setTimeoutLocked(long now, long timeoutOverride, int nextState) {
         if (mBootCompleted) {
-            mHandler.removeCallbacks(mTimeoutTask);
-            mTimeoutTask.nextState = nextState;
-            long when = now;
-            switch (nextState)
-            {
-                case SCREEN_BRIGHT:
-                    when += mKeylightDelay;
-                    break;
-                case SCREEN_DIM:
-                    if (mDimDelay >= 0) {
-                        when += mDimDelay;
-                        break;
-                    } else {
-                        Slog.w(TAG, "mDimDelay=" + mDimDelay + " while trying to dim");
+            synchronized (mLocks) {
+                mHandler.removeCallbacks(mTimeoutTask);
+                mTimeoutTask.nextState = nextState;
+                long when = 0;
+                if (timeoutOverride <= 0) {
+                    switch (nextState)
+                    {
+                        case SCREEN_BRIGHT:
+                            when = now + mKeylightDelay;
+                            break;
+                        case SCREEN_DIM:
+                            if (mDimDelay >= 0) {
+                                when = now + mDimDelay;
+                                break;
+                            } else {
+                                Slog.w(TAG, "mDimDelay=" + mDimDelay + " while trying to dim");
+                            }
+                       case SCREEN_OFF:
+                            synchronized (mLocks) {
+                                when = now + mScreenOffDelay;
+                            }
+                            break;
+                        default:
+                            when = now;
+                            break;
                     }
-                case SCREEN_OFF:
-                    synchronized (mLocks) {
-                        when += mScreenOffDelay;
+                } else {
+                    override: {
+                        if (timeoutOverride <= mScreenOffDelay) {
+                            when = now + timeoutOverride;
+                            nextState = SCREEN_OFF;
+                            break override;
+                        }
+                        timeoutOverride -= mScreenOffDelay;
+
+                        if (mDimDelay >= 0) {
+                             if (timeoutOverride <= mDimDelay) {
+                                when = now + timeoutOverride;
+                                nextState = SCREEN_DIM;
+                                break override;
+                            }
+                            timeoutOverride -= mDimDelay;
+                        }
+
+                        when = now + timeoutOverride;
+                        nextState = SCREEN_BRIGHT;
                     }
-                    break;
+                }
+                if (mSpew) {
+                    Slog.d(TAG, "setTimeoutLocked now=" + now
+                            + " timeoutOverride=" + timeoutOverride
+                            + " nextState=" + nextState + " when=" + when);
+                }
+                mHandler.postAtTime(mTimeoutTask, when);
+                mNextTimeout = when; // for debugging
             }
-            if (mSpew) {
-                Slog.d(TAG, "setTimeoutLocked now=" + now + " nextState=" + nextState
-                        + " when=" + when);
-            }
-            mHandler.postAtTime(mTimeoutTask, when);
-            mNextTimeout = when; // for debugging
         }
     }
 
@@ -1776,7 +1813,7 @@ class PowerManagerService extends IPowerManager.Stub
             setLightBrightness(offMask, Power.BRIGHTNESS_OFF);
         }
         if (dimMask != 0) {
-            int brightness = Power.BRIGHTNESS_DIM;
+            int brightness = mScreenDim;
             if ((newState & BATTERY_LOW_BIT) != 0 &&
                     brightness > Power.BRIGHTNESS_LOW_BATTERY) {
                 brightness = Power.BRIGHTNESS_LOW_BATTERY;
@@ -1994,18 +2031,33 @@ class PowerManagerService extends IPowerManager.Stub
 
     public void userActivityWithForce(long time, boolean noChangeLights, boolean force) {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DEVICE_POWER, null);
-        userActivity(time, noChangeLights, OTHER_EVENT, force);
+        userActivity(time, -1, noChangeLights, OTHER_EVENT, force);
     }
 
     public void userActivity(long time, boolean noChangeLights) {
-        userActivity(time, noChangeLights, OTHER_EVENT, false);
+        userActivity(time, -1, noChangeLights, OTHER_EVENT, false);
     }
 
     public void userActivity(long time, boolean noChangeLights, int eventType) {
-        userActivity(time, noChangeLights, eventType, false);
+        userActivity(time, -1, noChangeLights, eventType, false);
     }
 
     public void userActivity(long time, boolean noChangeLights, int eventType, boolean force) {
+        userActivity(time, -1, noChangeLights, eventType, force);
+    }
+
+    /*
+     * Reset the user activity timeout to now + timeout.  This overrides whatever else is going
+     * on with user activity.  Don't use this function.
+     */
+    public void clearUserActivityTimeout(long now, long timeout) {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DEVICE_POWER, null);
+        Slog.i(TAG, "clearUserActivity for " + timeout + "ms from now");
+        userActivity(now, timeout, false, OTHER_EVENT, false);
+    }
+
+    private void userActivity(long time, long timeoutOverride, boolean noChangeLights,
+            int eventType, boolean force) {
         //mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DEVICE_POWER, null);
 
         if (((mPokey & POKE_LOCK_IGNORE_CHEEK_EVENTS) != 0)
@@ -2077,7 +2129,7 @@ class PowerManagerService extends IPowerManager.Stub
                     mWakeLockState = mLocks.reactivateScreenLocksLocked();
                     setPowerState(mUserState | mWakeLockState, noChangeLights,
                             WindowManagerPolicy.OFF_BECAUSE_OF_USER);
-                    setTimeoutLocked(time, SCREEN_BRIGHT);
+                    setTimeoutLocked(time, timeoutOverride, SCREEN_BRIGHT);
                     mAlwaysOnAndDimmed = false;
                 }
             }
@@ -2165,35 +2217,41 @@ class PowerManagerService extends IPowerManager.Stub
             synchronized (mLocks) {
                 boolean again = false;
                 if (mLightFilterSample > 0 && !isScreenTurningOffLocked()) {
+                    int discarded = mLightFilterSamples[mLightFilterIndex];
                     mLightFilterSamples[mLightFilterIndex] = mLightFilterSample;
                     mLightFilterIndex = (mLightFilterIndex + 1) %
                             mLightFilterSamples.length;
-                    int sum, count, sample;
-                    sum = count = sample = 0;
-                    for (int i = 0; i < mLightFilterSamples.length; i++) {
-                        sample = mLightFilterSamples[i];
-                        if (sample < 0) {
-                            break;
-                        }
-                        sum += sample;
-                        count++;
+                    mLightFilterSampleCounter = Math.min(mLightFilterSampleCounter + 1,
+                             mLightFilterSamples.length);
+                    if (mLightFilterSampleCounter < mLightFilterSamples.length) {
+                        discarded = 0; // Don't subtract if window isn't full
                     }
+                    // Add new value...
+                    mLightFilterSum += mLightFilterSample;
+                    // ... and subtract discarded value
+                    mLightFilterSum -= discarded;
                     // Count can't be zero here
-                    int average = Math.round((float)sum / count);
+                    int average = Math.round(
+                                (float)mLightFilterSum / mLightFilterSampleCounter);
                     if (average != (int)mLightSensorValue) {
                         lightSensorChangedLocked(average);
                     }
                     if ((int)mLightSensorValue != mLightFilterSample) {
+                        mLightFilterEqualCounter = 0;
                         again = true;
                         if (mDebugLightSensor) {
                             Slog.d(TAGF, "Tick: " + (int)mLightSensorValue + "::" +
-                                    mLightFilterSample);
+                                    mLightFilterSample + " sum:" + mLightFilterSum +
+                                    " samples:" + mLightFilterSampleCounter);
                         }
-                    } else if (mDebugLightSensor) {
-                        mLightFilterCounter++;
-                        again = mLightFilterCounter < mLightFilterSamples.length;
-                        Slog.d(TAGF, "Done: " + (int)mLightSensorValue + " " +
-                                    mLightFilterCounter + "/" + mLightFilterSamples.length);
+                    } else {
+                        mLightFilterEqualCounter++;
+                        again = mLightFilterEqualCounter < mLightFilterSamples.length;
+                        if (mDebugLightSensor) {
+                            Slog.d(TAGF, "Done: " + (int)mLightSensorValue + " " +
+                            mLightFilterEqualCounter + "/" + mLightFilterSamples.length +
+                            " sum:" + mLightFilterSum + " samples:" + mLightFilterSampleCounter);
+                        }
                     }
                 }
                 if (again) {
@@ -2215,9 +2273,11 @@ class PowerManagerService extends IPowerManager.Stub
     }
 
     private void lightFilterReset(int initial) {
-        mLightFilterCounter = 0;
+        mLightFilterEqualCounter = 0;
         mLightFilterIndex = 0;
         mLightFilterSamples = new int[(mLightFilterWindow / mLightFilterInterval)];
+        mLightFilterSampleCounter = initial == -1 ? 0 : mLightFilterSamples.length;
+        mLightFilterSum = initial == -1 ? 0 : initial * mLightFilterSamples.length;
         java.util.Arrays.fill(mLightFilterSamples, initial);
         if (mDebugLightSensor) {
             Slog.d(TAGF, "reset: " + initial);
@@ -3085,9 +3145,8 @@ class PowerManagerService extends IPowerManager.Stub
                             // process the value immediately if screen has just turned on
                             lightFilterReset(-1);
                             lightSensorChangedLocked(value);
-                        } else {
-                            // Small changes -> filtered
-                            lightFilterReset((int)mLightSensorValue);
+                        }
+                        if (!mLightFilterRunning) {
                             if (mDebugLightSensor) {
                                 Slog.d(TAGF, "start: " + value);
                             }
