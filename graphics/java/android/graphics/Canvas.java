@@ -1305,7 +1305,7 @@ public class Canvas {
 	int end = text.length();
 
 	//Arabic Shaping
-	text = ArShaper.shapeText(text,start,end,paint,"drawText,String,2");
+	text = ArShaper.shapeText(text,start,end,"drawText,String,2");
         //
 
         /*if ((start | end | (end - start) | (text.length() - end)) < 0) {
@@ -1339,7 +1339,7 @@ public class Canvas {
     public void drawText(String text, int start, int end, float x, float y,
                          Paint paint) {
 	//Arabic Shaping
-	text = ArShaper.shapeText(text,start,end,paint,"drawText,String,2");
+	text = ArShaper.shapeText(text,start,end,"drawText,String,2");
         //
 
         if ((start | end | (end - start) | (text.length() - end)) < 0) {
@@ -1374,7 +1374,7 @@ public class Canvas {
 		System.out.println(text.length());}
 
 		String shaped = null;
-		shaped = ArShaper.shapeText(text.toString(),start,end,paint,"drawText,CharSeq,3,Spanned");
+		shaped = ArShaper.shapeText(text.toString(),start,end,"drawText,CharSeq,3,Spanned");
 
 		if(debugG)
 		{System.out.println("After shaping in drawText,CharSeq String:"+ shaped.toString());
@@ -1423,29 +1423,7 @@ public class Canvas {
         }
         else if (text instanceof GraphicsOperations) {
 
-	/*/////////////////////////////////////////////////////////Arabic Shaping
-
-		// Could be a solution to arabize html apps (like Gmail), but is causing cast exceptions
-		// Update: look up in ArShaper.shapeText string version, this is not a solution
-
-	//String shaped;
-	//int len = text.length();
-	//char[] shapedC;
-
-	try {
-			text = ArShaper.shapeText(((GraphicsOperations) text).toString(),"drawText,CharSeq,3,Graphics");
-			//((CharWrapper) text).set(shapedC,0,len); //Doesnt work
-		}
-
-			catch (ClassCastException e) {
-		System.out.print("Cannot Convert Canvas Text in " 
-		+ "drawText,CharSeq,3,Graphics where contents is :" + text.toString());
-
-				}
-	/////////////////////////////////////////////////////////*/
-
-		//Thread.dumpStack();
-		//System.out.print("Graphics text is: " + text.toString());
+	
 
             ((GraphicsOperations) text).drawText(this, start, end, x, y,
                                                    paint);

@@ -211,7 +211,7 @@ public class ArShaper {
     public static void shapeText(char[] text,int index,int count,Paint paint,String pos){
 
 	if(debugG)
-		{System.out.println(pos + "-- Org---Paint Hash :" + paint.toString() );
+		{System.out.println(pos + "-- Org---Paint Hash :" );
 		String prt = String.copyValueOf(text,index,count);
 		System.out.println(prt);
 		System.out.println(count);
@@ -508,14 +508,16 @@ public class ArShaper {
      * Function takes argument string and shapes its arabic letters for connectivity
      */
 
-    /*public static String shapeText(String text,String pos){
+    public static String shapeText(String text,String pos){
 
-	ArabicShaping AShaping = new ArabicShaping(ArabicShaping.LETTERS_SHAPE|ArabicShaping.LAMALEF_AUTO);
-	Thread.dumpStack();
-	System.out.println("---");
+	String textR = shapeText(text,0,text.length(),pos);
+
+	//ArabicShaping AShaping = new ArabicShaping(ArabicShaping.LETTERS_SHAPE|ArabicShaping.LAMALEF_AUTO);
+	//Thread.dumpStack();
+	/*System.out.println("---");
 	System.out.println(text);
 	System.out.println(text.length());
-	System.out.println("And after shaping in "+ pos +" :");
+	System.out.println("And after shaping in "+ pos +" :");*/
 	
 	/*try {
 		text = AShaping.shape(text);
@@ -531,10 +533,11 @@ public class ArShaper {
 	System.out.println(text);
 	System.out.println(text.length());
 
-	return text;
+	return text;*/
 
+	return textR;
 
-	}*/
+	}
 
 
     /**
@@ -542,10 +545,10 @@ public class ArShaper {
      * Function takes argument string (with start and end) and shapes its arabic letters for connectivity
      */
 
-    public static String shapeText(String text,int start,int end,Paint paint,String pos){
+    public static String shapeText(String text,int start,int end,String pos){
 
 	if(debugG){
-	System.out.println(pos + "-- Org---Paint Hash :" + paint.toString() );
+	System.out.println(pos + "-- Org---Paint Hash :" );
 	System.out.println(text.substring(start,end));
 	System.out.println(text.substring(start,end).length());
 		}
@@ -701,7 +704,7 @@ public class ArShaper {
 				System.out.print("Null,Cannot Convert Canvas Text in " + pos);
 		}
 
-	if(debugG)
+		if(debugG)
 		{System.out.println("And after shaping in "+ pos +" :");
 		System.out.println(String.copyValueOf(shaped,start,end-start));
 		System.out.println(shaped.length);}
@@ -713,7 +716,7 @@ public class ArShaper {
 	
 
 
-	else {
+	/*else {
 
 	//AShaping = new ArabicShaping(ArabicShaping.LETTERS_SHAPE|ArabicShaping.LAMALEF_AUTO);
 
@@ -723,15 +726,16 @@ public class ArShaper {
 	
 	
 	
-
+	}*/
 	
 	
 
-	return String.copyValueOf(shaped);
+	return String.copyValueOf(shaped);	
 
-
-	}
+    }
     
 
 
 }
+
+
