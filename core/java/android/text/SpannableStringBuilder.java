@@ -32,16 +32,7 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
            GraphicsOperations ,GetCharsDraw
 {
 
-	////////////////////////////////////////////
-	// Arabic Shaping declarations begin
-	////////////////////////////////////////////
 
-	//ArabicShaping AShaping;
-	
-
-	////////////////////////////////////////////
-	// Arabic Shaping declarations end
-	////////////////////////////////////////////
     /**
      * Create a new SpannableStringBuilder with empty contents
      */
@@ -74,7 +65,10 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
 
         TextUtils.getChars(text, start, end, mText, 0);
 
-	//Arabic Shaping
+	////////////////////////////////////////////
+	// Arabic Shaping Start
+	////////////////////////////////////////////
+
 	//Copying to raw mText (for system use, not drawing), then shaping mText (for drawing use)
 
 	mTextRaw = new char[len];
@@ -85,49 +79,24 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         
         ArShaper.shaper(mText,0,len,"SpannableSB -- Constructor");
 
-	/*////////////////////////////////////////////
-	// Arabic Shaping start
-	//////////////////////////////////////////////
-	
-	AShaping = new ArabicShaping(ArabicShaping.LETTERS_SHAPE|ArabicShaping.LAMALEF_AUTO);
+	/*if(mText.length() != len ){
 
-	//if (!(text instanceof Spanned)){
-	//char[] shaped = new char[buf.length()];
-	//String shapedText = null;
-	//((SpannableStringBuilder)buf).getChars(0, buf.length(), shaped, 0);
-	//Debug
-	/*System.out.println("--");
-	System.out.println(String.copyValueOf(mText,0,srclen));
-	System.out.println(srclen);*
+	    int srclen = end - start;
 
-	try	 {
-		//shapedText = AShaping.shape(text.toString());
-		//if (!(boolean)mSpannedText) 
-			AShaping.shape(mText,0,srclen);
-		}	
-		
+            int len = ArrayUtils.idealCharArraySize(srclen + 1);
+        mGapStart = srclen;
+        mGapLength = len - srclen;
 
-	catch (ArabicShapingException e){
-				System.out.print("Cannot Convert mText");
-		}
 
-	//buf = buf.replace(0,buf.length(),(CharSequence)shaped);
-
-	//((SpannableStringBuilder)buf).setChars(0,buf.length(),shaped,0);
+	}*/
 
 	
-	//CharSequence mText2 = (CharSequence)shapedText.subSequence(0, shapedText.length());
-
-	
-
 	//Debug
 	/*System.out.println("And after shaping in SSB..:");
 	System.out.println(String.copyValueOf(mText,0,srclen));
 	System.out.println(mText.length);
 	Thread.dumpStack();*/
 
-
-	//text = (CharSequence)shapedText;
 	
 
 	////////////////////////////////////////////

@@ -30,7 +30,7 @@ public class ArShaper {
 
 	static boolean debugG = false;
 	private static boolean webkitAr = false; // for PhoneLayoutPolicy, for use in webkitAr
-	static private int AShapBits = ArabicShaping.LETTERS_SHAPE|ArabicShaping.LENGTH_FIXED_SPACES_NEAR;
+	static private int AShapBits = ArabicShaping.LETTERS_SHAPE|ArabicShaping.LAMALEF_NEAR;
 
 
    //
