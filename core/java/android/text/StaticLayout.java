@@ -225,15 +225,14 @@ extends Layout
             boolean easy = true;
             boolean altered = false;
             int dir = DEFAULT_DIR; // XXX
-	    
-	    //Arabic Direction Support Addition
+        //Arabic Direction Support Addition
 	    char frl = '0';
             arabicChars = false;
 	    arb = 0;
 	    //End
 
 
-            for (int i = 0; i < n; i++) {
+             for (int i = 0; i < n; i++) {
                 if (chs[i] >= FIRST_RIGHT_TO_LEFT )  {
 	            easy = false;
 		    
@@ -251,14 +250,21 @@ extends Layout
 				if (arb > 10) break;
 			}
                 }
+            /*
 
-		//else dir = DIR_LEFT_TO_RIGHT;
+            if (!easy) {
+                // XXX put override flags, etc. into chdirs
+                dir = bidi(dir >= 0 ? DIR_REQUEST_DEFAULT_LTR : DIR_REQUEST_DEFAULT_RTL,
+                           chs, chdirs, n, false);
             }
-
-
+            */
             // Ensure that none of the underlying characters are treated
             // as viable breakpoints, and that the entire run gets the
             // same bidi direction.
+
+            final byte SOR = dir == DIR_LEFT_TO_RIGHT ?
+                Character.DIRECTIONALITY_LEFT_TO_RIGHT :
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT;
 
             if (source instanceof Spanned) {
                 Spanned sp = (Spanned) source;
@@ -269,14 +275,15 @@ extends Layout
                     int b = sp.getSpanEnd(spans[y]);
 
                     for (int x = a; x < b; x++) {
+                        chdirs[x - start] = SOR;
                         chs[x - start] = '\uFFFC';
                     }
                 }
             }
 
             if (!easy) {
-                // XXX put override flags, etc. into chdirs
-                dir = bidi(dir, chs, chdirs, n, false);
+            	
+            	dir = bidi(dir, chs, chdirs, n, false);
 
                 // Do mirroring for right-to-left segments
 
@@ -336,7 +343,9 @@ extends Layout
                                                       class);
 
                 if (spanned == null) {
-                    paint.getTextWidths(sub, i, next, widths);
+                    final int actualNum = paint.getTextWidths(sub, i, next, widths);
+                    if (next - i > actualNum)
+                        adjustTextWidths(widths, sub, i, next, actualNum);
                     System.arraycopy(widths, 0, widths,
                                      end - start + (i - start), next - i);
                                      
@@ -344,9 +353,11 @@ extends Layout
                 } else {
                     mWorkPaint.baselineShift = 0;
 
-                    Styled.getTextWidths(paint, mWorkPaint,
-                                         spanned, i, next,
-                                         widths, fm);
+                    final int actualNum = Styled.getTextWidths(paint, mWorkPaint,
+                            spanned, i, next,
+                            widths, fm);
+                    if (next - i > actualNum)
+                        adjustTextWidths(widths, spanned, i, next, actualNum);
                     System.arraycopy(widths, 0, widths,
                                      end - start + (i - start), next - i);
 
@@ -652,9 +663,8 @@ extends Layout
             boolean hasInfo) {
         
         AndroidCharacter.getDirectionalities(chs, chInfo, n);
-
-
-	int ddd = 99999;
+        
+        int ddd = 99999;
 
                 for (int j = 0; j < n; j++) {
                     int d = chInfo[j];
@@ -710,39 +720,20 @@ extends Layout
 
 
 		}
-	
-		/// Debug arabic directionality
-
 		
-
-		//direct = (dir == DIR_RIGHT_TO_LEFT)?"Right to left":"Left To Right";
-		//System.out.println("--Directionality 2 is :" + dir + " Character chs[0] is " + chs[0]
-		//		+ " , d is " + ddd);
-		///
-
-
-
         /*
          * Determine primary paragraph direction if not specified
-       
+         */
         if (dir != DIR_REQUEST_LTR && dir != DIR_REQUEST_RTL) {
-            // set up default
-            dir = dir >= 0 ? DIR_LEFT_TO_RIGHT : DIR_RIGHT_TO_LEFT;
+            // Heuristic - LTR unless paragraph contains any RTL chars
+            dir = DIR_LEFT_TO_RIGHT;
             for (int j = 0; j < n; j++) {
-                int d = chInfo[j];
-
-                if (d == Character.DIRECTIONALITY_LEFT_TO_RIGHT) {
-                    dir = DIR_LEFT_TO_RIGHT;
-                    break;
-                }
-                if (d == Character.DIRECTIONALITY_RIGHT_TO_LEFT) {
+                if (chInfo[j] == Character.DIRECTIONALITY_RIGHT_TO_LEFT) {
                     dir = DIR_RIGHT_TO_LEFT;
                     break;
                 }
             }
-        }  */
-
-
+        }
 
         /*
          * XXX Explicit overrides should go here
@@ -752,11 +743,11 @@ extends Layout
          * Weak type resolution
          */
 
-	        final byte SOR = dir == DIR_LEFT_TO_RIGHT ?
+        final byte SOR = dir == DIR_LEFT_TO_RIGHT ?
                 Character.DIRECTIONALITY_LEFT_TO_RIGHT :
                 Character.DIRECTIONALITY_RIGHT_TO_LEFT;
 
-        // dump(chdirs, n, "initial");
+        // dump(chInfo, n, "initial");
 
         // W1 non spacing marks
         for (int j = 0; j < n; j++) {
@@ -768,7 +759,7 @@ extends Layout
             }
         }
 
-        // dump(chdirs, n, "W1");
+        // dump(chInfo, n, "W1");
 
         // W2 european numbers
         byte cur = SOR;
@@ -782,12 +773,11 @@ extends Layout
             else if (d == Character.DIRECTIONALITY_EUROPEAN_NUMBER) {
                  if (cur ==
                     Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC)
-                   // chInfo[j] = Character.DIRECTIONALITY_ARABIC_NUMBER;
-		    chInfo[j] = Character.DIRECTIONALITY_LEFT_TO_RIGHT;
+                    chInfo[j] = Character.DIRECTIONALITY_ARABIC_NUMBER;
             }
         }
 
-        // dump(chdirs, n, "W2");
+        // dump(chInfo, n, "W2");
 
         // W3 arabic letters
         for (int j = 0; j < n; j++) {
@@ -795,13 +785,16 @@ extends Layout
                 chInfo[j] = Character.DIRECTIONALITY_RIGHT_TO_LEFT;
         }
 
-        // dump(chdirs, n, "W3");
+        // dump(chInfo, n, "W3");
 
         // W4 single separator between numbers
         for (int j = 1; j < n - 1; j++) {
             byte d = chInfo[j];
             byte prev = chInfo[j - 1];
             byte next = chInfo[j + 1];
+
+            boolean isSpace = Character.isWhitespace(chs[j]);
+            boolean nextIsSpace = Character.isWhitespace(chs[j + 1]);
 
             if (d == Character.DIRECTIONALITY_EUROPEAN_NUMBER_SEPARATOR) {
                 if (prev == Character.DIRECTIONALITY_EUROPEAN_NUMBER &&
@@ -814,10 +807,31 @@ extends Layout
                 if (prev == Character.DIRECTIONALITY_ARABIC_NUMBER &&
                     next == Character.DIRECTIONALITY_ARABIC_NUMBER)
                     chInfo[j] = Character.DIRECTIONALITY_ARABIC_NUMBER;
+                // add condition for spaces following the separator
+                if (nextIsSpace &&
+                            (   prev == Character.DIRECTIONALITY_EUROPEAN_NUMBER
+                             || prev == Character.DIRECTIONALITY_ARABIC_NUMBER  ) )
+                            chInfo[j] = SOR;
+            }
+            // add condition if the separator is a space
+            else if (isSpace && prev != SOR &&
+                            (   next == Character.DIRECTIONALITY_EUROPEAN_NUMBER
+                             || next == Character.DIRECTIONALITY_ARABIC_NUMBER  ) ) {
+                chInfo[j] = SOR;
+                for (int k=j+1; k < n; ++k) {
+                    if (chInfo[k] == Character.DIRECTIONALITY_LEFT_TO_RIGHT) {
+                        chInfo[j] = Character.DIRECTIONALITY_LEFT_TO_RIGHT;
+                        break;
+                    }
+                    if (chInfo[k] == Character.DIRECTIONALITY_RIGHT_TO_LEFT) {
+                        chInfo[j] = Character.DIRECTIONALITY_RIGHT_TO_LEFT;
+                        break;
+                    }
+                }
             }
         }
 
-        // dump(chdirs, n, "W4");
+        // dump(chInfo, n, "W4");
 
         // W5 european number terminators
         boolean adjacent = false;
@@ -832,7 +846,7 @@ extends Layout
                 adjacent = false;
         }
 
-        //dump(chdirs, n, "W5");
+        //dump(chInfo, n, "W5");
 
         // W5 european number terminators part 2,
         // W6 separators and terminators
@@ -859,7 +873,7 @@ extends Layout
             }
         }
 
-        // dump(chdirs, n, "W6");
+        // dump(chInfo, n, "W6");
 
         // W7 strong direction of european numbers
         cur = SOR;
@@ -872,10 +886,10 @@ extends Layout
                 cur = d;
 
             if (d == Character.DIRECTIONALITY_EUROPEAN_NUMBER)
-                chInfo[j] = cur;
+                chInfo[j] = Character.DIRECTIONALITY_LEFT_TO_RIGHT;
         }
 
-        // dump(chdirs, n, "W7");
+        // dump(chInfo, n, "W7");
 
         // N1, N2 neutrals
         cur = SOR;
@@ -887,7 +901,7 @@ extends Layout
                 cur = d;
             } else if (d == Character.DIRECTIONALITY_EUROPEAN_NUMBER ||
                        d == Character.DIRECTIONALITY_ARABIC_NUMBER) {
-                cur = Character.DIRECTIONALITY_RIGHT_TO_LEFT;
+                cur = Character.DIRECTIONALITY_LEFT_TO_RIGHT;
             } else {
                 byte dd = SOR;
                 int k;
@@ -917,7 +931,7 @@ extends Layout
             }
         }
 
-        // dump(chdirs, n, "final");
+        // dump(chInfo, n, "final");
 
         // extra: enforce that all tabs and surrogate characters go the
         // primary direction
@@ -931,6 +945,26 @@ extends Layout
             }
         }
         
+        // Deal specifically with special operators (like '+',etc.) ahead of numbers/english inside RTL paragraphs
+        for (int j = 0; j < n; j++) {
+            switch(chs[j]) {
+            case '+':
+            // For the following chars it is logical to apply the fix, but it appears
+            // it customary only for the "+" and we need to behave similarly to other devices:
+            //case '*':
+            //case '/':
+            //case '@':
+            //case '#':
+            //case '$':
+            //case '%':
+            //case '^':
+            //case '&':
+            //case '_':
+            //case '\\':
+                chInfo[j] = Character.DIRECTIONALITY_LEFT_TO_RIGHT;
+            }
+        }
+
         return dir;
     }
 
@@ -1059,6 +1093,22 @@ extends Layout
             return start;
         else
             return low;
+    }
+
+    private static void adjustTextWidths(float[] widths, CharSequence text,
+                              int curPos, int nextPos, int actualNum) {
+        try {
+            int dstIndex = nextPos - curPos - 1;
+            for (int srcIndex = actualNum - 1; srcIndex >= 0; srcIndex--) {
+                final char c = text.charAt(dstIndex + curPos);
+                if (c >= 0xD800 && c <= 0xDFFF) {
+                    widths[dstIndex--] = 0.0f;
+                }
+                widths[dstIndex--] = widths[srcIndex];
+            }
+        } catch (IndexOutOfBoundsException e) {
+            Log.e("text", "adjust text widths failed");
+        }
     }
 
     private int out(CharSequence text, int start, int end,
@@ -1339,7 +1389,8 @@ extends Layout
     }
 
     public int getParagraphDirection(int line) {
-        return mLines[mColumns * line + DIR] >> DIR_SHIFT;
+        // LTR unless paragraph contains RTL chars (anywhere)
+        return mLineDirections[line].hasRTL() ? DIR_RIGHT_TO_LEFT : DIR_LEFT_TO_RIGHT;
     }
 
     public boolean getLineContainsTab(int line) {

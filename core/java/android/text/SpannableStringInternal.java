@@ -24,7 +24,7 @@ import com.ibm.icu.text.*;
 
 /* package */ abstract class SpannableStringInternal implements GetCharsDraw
 {
-
+	
 	//Start Arabic Shaping
 	ArabicShaping AShaping;
 	//boolean debugG = false;
@@ -37,38 +37,38 @@ import com.ibm.icu.text.*;
             mText = source.toString();
         else
             mText = source.toString().substring(start, end);
+            
+        /////////////////////////Arabic Shaping
 
-	/////////////////////////Arabic Shaping
-
-	//mTextRaw = new char[len];
-	StringBuffer tmp = new StringBuffer(mText);
-	mTextRaw = tmp.toString();
-
-	//AShaping = new ArabicShaping(ArabicShaping.LETTERS_SHAPE|ArabicShaping.LENGTH_FIXED_SPACES_NEAR);
-		//	|ArabicShaping.TEXT_DIRECTION_VISUAL_LTR);
-
-
-	//System.out.println("before shaping,text in SpannableInt has -->" + mText );
-
-	mText = ArShaper.shaper(mText,"SpannableSI -- Constructor");
-
-	/*try {
-		mText = AShaping.shape(mText);
-		//if (!noBidi) tmp = ABidi.writeReordered(Bidi.REORDER_NUMBERS_SPECIAL);
-		//else tmp = Bidi.writeReverse(String.copyValueOf(text),Bidi.REORDER_NUMBERS_SPECIAL);
-		
-	}
-
-	catch (ArabicShapingException e){
-				System.out.println("Cannot Convert SpannableInt Text " );
+		//mTextRaw = new char[len];
+		StringBuffer tmp = new StringBuffer(mText);
+		mTextRaw = tmp.toString();
+	
+		//AShaping = new ArabicShaping(ArabicShaping.LETTERS_SHAPE|ArabicShaping.LENGTH_FIXED_SPACES_NEAR);
+			//	|ArabicShaping.TEXT_DIRECTION_VISUAL_LTR);
+	
+	
+		//System.out.println("before shaping,text in SpannableInt has -->" + mText );
+	
+		mText = ArShaper.shaper(mText,"SpannableSI -- Constructor");
+	
+		/*try {
+			mText = AShaping.shape(mText);
+			//if (!noBidi) tmp = ABidi.writeReordered(Bidi.REORDER_NUMBERS_SPECIAL);
+			//else tmp = Bidi.writeReverse(String.copyValueOf(text),Bidi.REORDER_NUMBERS_SPECIAL);
+			
 		}
-	catch (NullPointerException e){
-				System.out.println("Null,Cannot Convert SpannableInt Text ");
-		}
-
-
-	//System.out.println("after shaping,text in SpannableInt has -->" + mText );
-	//Thread.dumpStack();*/
+	
+		catch (ArabicShapingException e){
+					System.out.println("Cannot Convert SpannableInt Text " );
+			}
+		catch (NullPointerException e){
+					System.out.println("Null,Cannot Convert SpannableInt Text ");
+			}
+	
+	
+		//System.out.println("after shaping,text in SpannableInt has -->" + mText );
+		//Thread.dumpStack();*/
 
 	//////////////////////////////////////////////////////////////////////
 

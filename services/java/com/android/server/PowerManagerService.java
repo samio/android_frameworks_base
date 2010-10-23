@@ -189,6 +189,8 @@ class PowerManagerService extends IPowerManager.Stub
     private LightsService.Light mButtonLight;
     private LightsService.Light mKeyboardLight;
     private LightsService.Light mAttentionLight;
+    private LightsService.Light mCapsLight;
+    private LightsService.Light mFnLight;
     private UnsynchronizedWakeLock mBroadcastWakeLock;
     private UnsynchronizedWakeLock mStayOnWhilePluggedInScreenDimLock;
     private UnsynchronizedWakeLock mStayOnWhilePluggedInPartialLock;
@@ -495,6 +497,8 @@ class PowerManagerService extends IPowerManager.Stub
         mButtonLight = lights.getLight(LightsService.LIGHT_ID_BUTTONS);
         mKeyboardLight = lights.getLight(LightsService.LIGHT_ID_KEYBOARD);
         mAttentionLight = lights.getLight(LightsService.LIGHT_ID_ATTENTION);
+        mCapsLight = lights.getLight(LightsService.LIGHT_ID_CAPS);
+        mFnLight = lights.getLight(LightsService.LIGHT_ID_FUNC);
 
         mHandlerThread = new HandlerThread("PowerManagerService") {
             @Override
@@ -1063,11 +1067,10 @@ class PowerManagerService extends IPowerManager.Stub
     // If they gave a timeoutOverride it is the number of seconds
     // to screen-off.  Figure out where in the countdown cycle we
     // should jump to.
-    private void setTimeoutLocked(long now, long timeoutOverride, int nextState) {
+    private void setTimeoutLocked(long now, final long originalTimeoutOverride, int nextState) {
+        long timeoutOverride = originalTimeoutOverride;
         if (mBootCompleted) {
             synchronized (mLocks) {
-                mHandler.removeCallbacks(mTimeoutTask);
-                mTimeoutTask.nextState = nextState;
                 long when = 0;
                 if (timeoutOverride <= 0) {
                     switch (nextState)
@@ -1118,6 +1121,12 @@ class PowerManagerService extends IPowerManager.Stub
                             + " timeoutOverride=" + timeoutOverride
                             + " nextState=" + nextState + " when=" + when);
                 }
+
+                mHandler.removeCallbacks(mTimeoutTask);
+                mTimeoutTask.nextState = nextState;
+                mTimeoutTask.remainingTimeoutOverride = timeoutOverride > 0
+                        ? (originalTimeoutOverride - timeoutOverride)
+                        : -1;
                 mHandler.postAtTime(mTimeoutTask, when);
                 mNextTimeout = when; // for debugging
             }
@@ -1133,6 +1142,7 @@ class PowerManagerService extends IPowerManager.Stub
     private class TimeoutTask implements Runnable
     {
         int nextState; // access should be synchronized on mLocks
+        long remainingTimeoutOverride;
         public void run()
         {
             synchronized (mLocks) {
@@ -1153,11 +1163,11 @@ class PowerManagerService extends IPowerManager.Stub
                 {
                     case SCREEN_BRIGHT:
                         if (mDimDelay >= 0) {
-                            setTimeoutLocked(now, SCREEN_DIM);
+                            setTimeoutLocked(now, remainingTimeoutOverride, SCREEN_DIM);
                             break;
                         }
                     case SCREEN_DIM:
-                        setTimeoutLocked(now, SCREEN_OFF);
+                        setTimeoutLocked(now, remainingTimeoutOverride, SCREEN_OFF);
                         break;
                 }
             }
@@ -2092,6 +2102,7 @@ class PowerManagerService extends IPowerManager.Stub
                         + " mUserState=0x" + Integer.toHexString(mUserState)
                         + " mWakeLockState=0x" + Integer.toHexString(mWakeLockState)
                         + " mProximitySensorActive=" + mProximitySensorActive
+                        + " timeoutOverride=" + timeoutOverride
                         + " force=" + force);
             }
             // ignore user activity if we are in the process of turning off the screen
@@ -2569,6 +2580,11 @@ class PowerManagerService extends IPowerManager.Stub
                         }
                     }
                     userActivity(SystemClock.uptimeMillis(), false, BUTTON_EVENT, true);
+                }
+                // If hiding keyboard, turn off leds
+                if (!visible) {
+                    setKeyboardLight(false, 1);
+                    setKeyboardLight(false, 2);
                 }
             }
         }
@@ -3065,6 +3081,21 @@ class PowerManagerService extends IPowerManager.Stub
             }
         }
     }
+
+    public void setKeyboardLight(boolean on, int key) {
+        if (key == 1) {
+            if (on) 
+                mCapsLight.setColor(0x00ffffff);
+            else
+                mCapsLight.turnOff();
+        } else if (key == 2) {
+            if (on) 
+                mFnLight.setColor(0x00ffffff);
+            else
+                mFnLight.turnOff();
+        }
+    }
+
 
     SensorEventListener mProximityListener = new SensorEventListener() {
         public void onSensorChanged(SensorEvent event) {

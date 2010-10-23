@@ -22,8 +22,6 @@ import android.graphics.Canvas;
 
 import java.lang.reflect.Array;
 
-//import com.ibm.icu.text.*;
-
 /**
  * This is the class for text whose content and markup can both be changed.
  */
@@ -31,8 +29,6 @@ public class SpannableStringBuilder
 implements CharSequence, GetChars, Spannable, Editable, Appendable,
            GraphicsOperations ,GetCharsDraw
 {
-
-
     /**
      * Create a new SpannableStringBuilder with empty contents
      */
@@ -53,9 +49,6 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
      * specified slice of the specified text, including its spans if any.
      */
     public SpannableStringBuilder(CharSequence text, int start, int end) {
-
-	
-
         int srclen = end - start;
 
         int len = ArrayUtils.idealCharArraySize(srclen + 1);
@@ -64,8 +57,8 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         mGapLength = len - srclen;
 
         TextUtils.getChars(text, start, end, mText, 0);
-
-	////////////////////////////////////////////
+        
+        ////////////////////////////////////////////
 	// Arabic Shaping Start
 	////////////////////////////////////////////
 
@@ -79,29 +72,29 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         
         ArShaper.shaper(mText,0,len,"SpannableSB -- Constructor");
 
-	/*if(mText.length() != len ){
-
-	    int srclen = end - start;
-
-            int len = ArrayUtils.idealCharArraySize(srclen + 1);
-        mGapStart = srclen;
-        mGapLength = len - srclen;
-
-
-	}*/
-
+		/*if(mText.length() != len ){
 	
-	//Debug
-	/*System.out.println("And after shaping in SSB..:");
-	System.out.println(String.copyValueOf(mText,0,srclen));
-	System.out.println(mText.length);
-	Thread.dumpStack();*/
-
+		    int srclen = end - start;
 	
-
-	////////////////////////////////////////////
-	// Arabic Shaping end
-	////////////////////////////////////////////*/
+	            int len = ArrayUtils.idealCharArraySize(srclen + 1);
+	        mGapStart = srclen;
+	        mGapLength = len - srclen;
+	
+	
+		}*/
+	
+		
+		//Debug
+		/*System.out.println("And after shaping in SSB..:");
+		System.out.println(String.copyValueOf(mText,0,srclen));
+		System.out.println(mText.length);
+		Thread.dumpStack();*/
+	
+		
+	
+		////////////////////////////////////////////
+		// Arabic Shaping end
+		////////////////////////////////////////////*/
 
         mSpanCount = 0;
         int alloc = ArrayUtils.idealIntArraySize(0);
@@ -159,7 +152,7 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         }
 
         if (where >= mGapStart)
-            return mTextRaw[where + mGapLength];
+        return mTextRaw[where + mGapLength];
         else
             //return mText[where];
 	    //Arabic shaping : get raw chars when for system use
@@ -181,7 +174,7 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         if (where >= mGapStart)
             return mText[where + mGapLength];
         else
-	    return mText[where];
+            return mText[where];
     }
 
     /**
@@ -207,8 +200,8 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
             if (mSpanEnds[i] > mGapStart)
                 mSpanEnds[i] += newlen - mText.length;
         }
-
-	//Arabic shaping
+        
+    //Arabic shaping
 	//resize for raw Text
 	char[] newTextRaw = new char[newlen];
 	System.arraycopy(mTextRaw, 0, newTextRaw, 0, length());
@@ -218,17 +211,12 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
 	mTextRaw = newTextRaw;	
 	/////////////////////////////////
 
-
         int oldlen = mText.length;
         mText = newtext;
         mGapLength += mText.length - oldlen;
 
         if (mGapLength < 1)
             new Exception("mGapLength < 1").printStackTrace();
-
-	
-	
-
     }
 
     private void moveGapTo(int where) {
@@ -242,20 +230,18 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
 
             System.arraycopy(mText, where,
                              mText, mGapStart + mGapLength - overlap, overlap);
-
             //Arabic Shaping
-	    System.arraycopy(mTextRaw, where,
-                             mTextRaw, mGapStart + mGapLength - overlap, overlap);
-        } else /* where > mGapStart */ {
+		    System.arraycopy(mTextRaw, where,
+	                             mTextRaw, mGapStart + mGapLength - overlap, overlap);
+	        } else /* where > mGapStart */ {
             int overlap = where - mGapStart;
 
             System.arraycopy(mText, where + mGapLength - overlap,
                              mText, mGapStart, overlap);
-
-	    //Arabic Shaping
-	    System.arraycopy(mTextRaw, where + mGapLength - overlap,
-                             mTextRaw, mGapStart, overlap);
-        }
+            //Arabic Shaping
+		    System.arraycopy(mTextRaw, where + mGapLength - overlap,
+	                             mTextRaw, mGapStart, overlap);
+	        }
 
         // XXX be more clever
         for (int i = 0; i < mSpanCount; i++) {
@@ -410,68 +396,21 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         if (mGapLength < 1)
             new Exception("mGapLength < 1").printStackTrace();
 
-        TextUtils.getChars(tb, tbstart, tbend, mText, start); 
-
-	//Replacing in raw text (for system use,not drawing use)
-	//Placing unshaped characters in mText could cause spacing issues (FIXME)
-
-	TextUtils.getChars(tb, tbstart, tbend, mTextRaw, start); 
-
-	ArShaper.shaper(mText,0,length(),"SpannableSB -- change()"); // Still causes trouble :/
-
-	//ArShaper.shaper(mText,start,tbend-tbstart,"SpannableSB -- change()");
+        TextUtils.getChars(tb, tbstart, tbend, mText, start);
         
-        //String shaped = ArShaper.shaper(mText,"SpannableSB -- change()");
-
-	//mText = shaped.toCharArray();
-	//Change mText to string, then apply shaping, then return to char
-
-	/*////////////////////////////////////////////
-	// Arabic Shaping start
-	//////////////////////////////////////////////
-
-	//if (!(text instanceof Spanned)){
-	//char[] shaped = new char[buf.length()];
-	//String shapedText = null;
-	//((SpannableStringBuilder)buf).getChars(0, buf.length(), shaped, 0);
-
-	/*System.out.println("--");
-	System.out.println(String.copyValueOf(mText,start,tbend-tbstart));
-	System.out.println(mText.length);
-
-	try	 {
-		//shapedText = AShaping.shape(text.toString());
-		//if (!(boolean)mSpannedText) 
-			AShaping.shape(mText,start,tbend-tbstart);
-		}	
+        //Replacing in raw text (for system use,not drawing use)
+		//Placing unshaped characters in mText could cause spacing issues (FIXME)
+	
+		TextUtils.getChars(tb, tbstart, tbend, mTextRaw, start); 
+	
+		ArShaper.shaper(mText,0,length(),"SpannableSB -- change()"); // Still causes trouble :/
+	
+	
 		
-
-	catch (ArabicShapingException e){
-				System.out.print("Cannot Convert mText");
-		}
-
-	//buf = buf.replace(0,buf.length(),(CharSequence)shaped);
-
-	//((SpannableStringBuilder)buf).setChars(0,buf.length(),shaped,0);
-
 	
-	//CharSequence mText2 = (CharSequence)shapedText.subSequence(0, shapedText.length());
-
-	
-
-	
-	/*System.out.println("And after shaping in SSB replace..:");
-	System.out.println(String.copyValueOf(mText,start,tbend-tbstart));
-	System.out.println(mText.length);*/
-
-
-	//text = (CharSequence)shapedText;
-	
-
-	////////////////////////////////////////////
-	// Arabic Shaping end
-	////////////////////////////////////////////*/
-
+		////////////////////////////////////////////
+		// Arabic Shaping end
+		////////////////////////////////////////////*/
         if (tb instanceof Spanned) {
             Spanned sp = (Spanned) tb;
             Object[] spans = sp.getSpans(tbstart, tbend, Object.class);
@@ -606,12 +545,10 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
             }
 
             mText[mGapStart] = ' ';
-	    //Arabic Shaping raw text
-	    mTextRaw[mGapStart] = ' ';
+            //Arabic Shaping raw text
+	    	mTextRaw[mGapStart] = ' ';
             mGapStart++;
             mGapLength--;
-
-	    
 
             if (mGapLength < 1)
                 new Exception("mGapLength < 1").printStackTrace();
@@ -999,7 +936,7 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         checkRange("getChars", start, end);
 
         if (end <= mGapStart) {
-            System.arraycopy(mTextRaw, start, dest, destoff, end - start);
+        	System.arraycopy(mTextRaw, start, dest, destoff, end - start);
         } else if (start >= mGapStart) {
             System.arraycopy(mTextRaw, start + mGapLength,
                              dest, destoff, end - start);
@@ -1022,7 +959,7 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         checkRange("getCharsDraw", start, end);
 
         if (end <= mGapStart) {
-            System.arraycopy(mText, start, dest, destoff, end - start);
+            System.arraycopy(mText, start, dest, destoff, end - start); //here
         } else if (start >= mGapStart) {
             System.arraycopy(mText, start + mGapLength,
                              dest, destoff, end - start);
@@ -1034,36 +971,6 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         }
     }
 
-     /**Arabic Shaping
-     * Copy the specified range of chars from a source into the
-     * this buffer, beginning at the specified offset.
-     */
-/*
-    public void setChars(int start, int end, char[] src, int srcoff) {
-        checkRange("getChars", start, end);
-
-        if (end <= mGapStart) {
-            //System.arraycopy(mText, start, dest, destoff, end - start);
-	    System.arraycopy(src, start, mText, srcoff, end - start);
-
-        } else if (start >= mGapStart) {
-           // System.arraycopy(mText, start + mGapLength,
-           //                  dest, destoff, end - start);
-	    System.arraycopy(src, start + mGapLength,
-                             mText, srcoff, end - start);
-        } else {
-            //System.arraycopy(mText, start, dest, destoff, mGapStart - start);
-          //  System.arraycopy(mText, mGapStart + mGapLength,
-          //                   dest, destoff + (mGapStart - start),
-          //                   end - mGapStart);
-
-	     System.arraycopy(src, start, mText, srcoff, mGapStart - start);
-            System.arraycopy(src, mGapStart + mGapLength,
-                             mText, srcoff + (mGapStart - start),
-                             end - mGapStart);
-        }
-    }*/
-
     /**
      * Return a String containing a copy of the chars in this buffer.
      */
@@ -1074,8 +981,8 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         getChars(0, len, buf, 0);
         return new String(buf);
     }
-
-    /**Arabic shaping
+    
+     /**Arabic shaping
      * Return a String containing a copy of the chars in this buffer.
      * for drawing
      */
@@ -1259,14 +1166,14 @@ implements CharSequence, GetChars, Spannable, Editable, Appendable,
         checkRange("drawText", start, end);
 
         if (end <= mGapStart) {
-            c.drawText(mText, start, end - start, x, y, p);
+            c.drawText(mText, start, end - start, x, y, p,true);
         } else if (start >= mGapStart) {
-            c.drawText(mText, start + mGapLength, end - start, x, y, p);
+            c.drawText(mText, start + mGapLength, end - start, x, y, p,true);
         } else {
             char[] buf = TextUtils.obtain(end - start);
 
             getCharsDraw(start, end, buf, 0);
-            c.drawText(buf, 0, end - start, x, y, p);
+            c.drawText(buf, 0, end - start, x, y, p,true);
             TextUtils.recycle(buf);
         }
     }
